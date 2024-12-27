@@ -8,20 +8,20 @@ export function layout(title, content) {
           padding: 80px;
           font: 16px Helvetica, Arial;
         }
-    
+  
         h1 {
           font-size: 2em;
         }
-    
+  
         h2 {
           font-size: 1.2em;
         }
-    
+  
         #posts {
           margin: 0;
           padding: 0;
         }
-    
+  
         #posts li {
           margin: 40px 0;
           padding: 0;
@@ -29,16 +29,16 @@ export function layout(title, content) {
           border-bottom: 1px solid #eee;
           list-style: none;
         }
-    
+  
         #posts li:last-child {
           border-bottom: none;
         }
-    
+  
         textarea {
           width: 500px;
           height: 300px;
         }
-    
+  
         input[type=text],
         textarea {
           border: 1px solid #eee;
@@ -48,7 +48,7 @@ export function layout(title, content) {
           padding: 15px;
           font-size: .8em;
         }
-    
+  
         input[type=text] {
           width: 500px;
         }
@@ -63,12 +63,15 @@ export function layout(title, content) {
     `
   }
   
+  // 顯示貼文列表，並加入貼文建立時間
   export function list(posts) {
     let list = []
     for (let post of posts) {
+      const formattedDate = new Date(post.created_at).toLocaleString(); // 格式化時間
       list.push(`
       <li>
         <h2>${ post.title }</h2>
+        <p>Created at: ${formattedDate}</p> <!-- 顯示貼文的建立時間 -->
         <p><a href="/post/${post.id}">Read post</a></p>
       </li>
       `)
@@ -84,6 +87,7 @@ export function layout(title, content) {
     return layout('Posts', content)
   }
   
+  // 顯示新增貼文的表單
   export function newPost() {
     return layout('New Post', `
     <h1>New Post</h1>
@@ -96,9 +100,13 @@ export function layout(title, content) {
     `)
   }
   
+  // 顯示特定貼文的內容，並加入貼文建立時間
   export function show(post) {
+    const formattedDate = new Date(post.created_at).toLocaleString(); // 格式化時間
     return layout(post.title, `
       <h1>${post.title}</h1>
       <pre>${post.body}</pre>
+      <p>Created at: ${formattedDate}</p> <!-- 顯示貼文的建立時間 -->
     `)
   }
+  
