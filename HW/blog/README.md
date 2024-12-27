@@ -57,7 +57,4 @@ html
 <h2>Title of the Post</h2>
 <p>Created at: 12/27/2024, 5:00 PM</p>
 <p><a href="/post/0">Read post</a></p>
-開發
-如果你希望修改或擴展功能，請按照以下步驟進行操作：
 
-編輯 app.js 或 render.js
