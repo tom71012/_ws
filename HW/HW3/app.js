@@ -1,132 +1,151 @@
 import { Application, Router } from "https://deno.land/x/oak/mod.ts";
-import * as render from './render.js'
+import * as render from './render.js';
 import { DB } from "https://deno.land/x/sqlite/mod.ts";
 
-const posts = [
-    {id:0, title:'Today is a good day',userId:'Alex', body:'Today is a good day. The sun is shining brightly in the sky, and the birds are chirping happily. The air is warm and inviting, and there is a sense of optimism in the air. I feel energetic and ready to tackle whatever tasks come my way. I am looking forward to spending time with friends and loved ones, and just enjoying the simple pleasures of life. Overall, today just feels like a positive, enjoyable day, and I am grateful for it.'},
-    {id:1, title:'I heard you',userId:'Luna', body:'I heard you when you spoke to me earlier. Your words were clear and easy to understand, and I paid close attention to what you were saying. I appreciate that you took the time to communicate with me and share your thoughts and ideas. It is important to me to listen carefully and actively engage in conversation, and I am glad that I was able to do so with you. Thank you for speaking up and making sure that I heard you.'}
-];
-
+// 模擬的帖子數據，未來會替換為從數據庫中讀取
 const db = new DB("members.db");
+db.query(`
+  CREATE TABLE IF NOT EXISTS posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
+    userId TEXT,
+    body TEXT,
+    created_at DATETIME,
+    category TEXT
+  )
+`);
 db.query("CREATE TABLE IF NOT EXISTS members (id INTEGER PRIMARY KEY AUTOINCREMENT, userId TEXT, password TEXT)");
 
 let LoginId = -1;
 let LOID = "";
 
 const router = new Router();
-router.get('/', list);
-router.get('/post/new', add);
-router.post('/create', create);
-router.get('/SignUp', sign);
-router.get('/login', login);
-router.post('/build', build);
-router.post('/check', check);
-
-router.get('/json', (ctx) => {
-    ctx.response.body = posts
-  })
+router.get('/', list);                  // 顯示所有帖子
+router.get('/post/new', add);            // 新建帖子
+router.post('/create', create);         // 創建帖子
+router.get('/SignUp', sign);            // 註冊頁面
+router.get('/login', login);            // 登錄頁面
+router.post('/build', build);           // 註冊提交
+router.post('/check', check);           // 登錄驗證
+router.get('/category/:category', categoryList); // 顯示特定版塊的帖子
 
 const app = new Application();
 app.use(router.routes());
 app.use(router.allowedMethods());
 
-function query(sql) {
-  let list = []
-  for (const [id, userId, password] of db.query(sql)) {
-    list.push({id, userId, password})
+// 查詢數據庫，返回結果
+function query(sql, params = []) {
+  let list = [];
+  for (const [id, title, userId, body, created_at, category] of db.query(sql, params)) {
+    list.push({ id, title, userId, body, created_at, category });
   }
-  return list
+  return list;
 }
 
+// 顯示註冊頁面
 async function sign(ctx) {
   ctx.response.body = await render.tosign();
 }
-  
+
+// 顯示登錄頁面
 async function login(ctx) {
   ctx.response.body = await render.tologin();
 }
 
+// 顯示所有帖子
 async function list(ctx) {
+  const posts = query("SELECT * FROM posts");
   ctx.response.body = await render.list(posts);
 }
 
+// 顯示新建帖子頁面
 async function add(ctx) {
   ctx.response.body = await render.newPost();
 }
 
+// 創建新帖子
 async function create(ctx) {
-  const body = ctx.request.body()
+  const body = ctx.request.body();
   if (body.type === "form") {
-    const pairs = await body.value
-    const post = {}
+    const pairs = await body.value;
+    const post = {};
     for (const [key, value] of pairs) {
-      post[key] = value
+      post[key] = value;
     }
-    console.log('post=', post)
-    const id = posts.push(post) - 1;
     post.created_at = new Date();
-    post.id = id;
-    post.userId = LOID
+    post.id = 0;  // 賦予新的ID
+    post.userId = LOID;
+    
+    // 存儲到數據庫中
+    db.query("INSERT INTO posts (title, userId, body, created_at, category) VALUES (?, ?, ?, ?, ?)", [
+      post.title, post.userId, post.body, post.created_at, post.category
+    ]);
+
     ctx.response.redirect('/');
   }
 }
 
+// 註冊新用戶
 async function build(ctx) {
-  const body = ctx.request.body()
+  const body = ctx.request.body();
   if (body.type === "form") {
-    const pairs = await body.value
-    const member = {}
+    const pairs = await body.value;
+    const member = {};
     let su = 0;
     for (const [key, value] of pairs) {
       if (value != "") {
-        member[key] = value
+        member[key] = value;
         su++;
-      }else {
+      } else {
         console.log('Empty value');
         ctx.response.redirect('/SignUp');
         break;
-      }  
+      }
     }
-    if (su == 2){
+    if (su == 2) {
       db.query("INSERT INTO members (userId, password) VALUES (?, ?)", [member.userId, member.password]);
-      console.log('create successul:',member)
-      let all = db.query("SELECT * FROM members");
-      console.log("members = ",all);
+      console.log('create successul:', member);
       ctx.response.redirect('/login');
     }
   }
 }
-  
+
+// 登錄檢查
 async function check(ctx) {
-  const body = ctx.request.body()
+  const body = ctx.request.body();
   if (body.type === "form") {
-    const pairs = await body.value
-    const member = {}
+    const pairs = await body.value;
+    const member = {};
     let cct = false;
     for (const [key, value] of pairs) {
-      member[key] = value
-    }     
-    for (const [id, userId, password] of db.query("SELECT id, userId, password FROM members")){
-      let ct=0;
-      if (member.userId === userId) ct++ ;
-      if (member.password === password) ct++ ;
+      member[key] = value;
+    }
+    for (const [id, userId, password] of db.query("SELECT id, userId, password FROM members")) {
+      let ct = 0;
+      if (member.userId === userId) ct++;
+      if (member.password === password) ct++;
       if (ct == 2) {
         cct = true;
-        LoginId = id
-        LOID = member.userId 
-        console.log('loginId : ', LoginId)
-        console.log('LOID : ', LOID)
-        console.log('check successul')
-        ctx.response.redirect('/')
+        LoginId = id;
+        LOID = member.userId;
+        console.log('loginId : ', LoginId);
+        console.log('LOID : ', LOID);
+        ctx.response.redirect('/');
       }
     }
-    if (cct != true){
+    if (!cct) {
       console.log('fail');
       ctx.response.redirect('/login');
     }
   }
 }
-  
 
-console.log('Server run at http://127.0.0.1:8000')
+// 顯示特定版塊的帖子
+async function categoryList(ctx) {
+  const category = ctx.params.category;
+  const posts = query("SELECT * FROM posts WHERE category = ?", [category]);
+  ctx.response.body = await render.list(posts, category);
+}
+
+console.log('Server running at http://127.0.0.1:8000');
 await app.listen({ port: 8000 });
